@@ -1,21 +1,18 @@
 # 【附录补充】更多化学突触模型
 
-### NMDA
+## NMDA
 
-NMDA的公式如下，
-$$ \frac{d s_{j}(t)}{dt} =-\frac{s_{j}(t)}{\tau_{decay}}+a x_{j}(t)(1-s_{j}(t))  $$
+NMDA的公式如下， $$\frac{d s_{j}(t)}{dt} =-\frac{s_{j}(t)}{\tau_{decay}}+a x_{j}(t)(1-s_{j}(t))$$
 
-$$ \frac{d x_{j}(t)}{dt} =-\frac{x_{j}(t)}{\tau_{rise}}+
-\sum_{k} \delta(t-t_{j}^{k})  $$
+$$\frac{d x_{j}(t)}{dt} =-\frac{x_{j}(t)}{\tau_{rise}}+ \sum_{k} \delta(t-t_{j}^{k})$$
 
-$$ g_{\infty}(V,[{Mg}^{2+}]_{o}) =(1+{e}^{-\alpha V} \cdot \frac{[{Mg}^{2+}]_{o} } {\beta})^{-1}  $$
+$$g_{\infty}(V,[{Mg}^{2+}]_{o}) =(1+{e}^{-\alpha V} \cdot \frac{[{Mg}^{2+}]_{o} } {\beta})^{-1}$$
 
-$$ g(t) = \bar{g}_{syn} \cdot g_{\infty}  s $$
+$$g(t) = \bar{g}_{syn} \cdot g_{\infty} s$$
 
 其中，它的E为0
 
 NMDA实现的代码如下
-
 
 ```python
 class NMDA(bp.TwoEndConn):    
@@ -26,7 +23,7 @@ class NMDA(bp.TwoEndConn):
         dxdt = -x / tau_rise
         dsdt = -s / tau_decay + a * x * (1 - s)
         return dsdt, dxdt
-    
+
     def __init__(self, pre, post, conn, delay=0., g_max=0.15, E=0., cc_Mg=1.2,
                     alpha=0.062, beta=3.57, tau=100, a=0.5, tau_rise = 2., **kwargs):
         # parameters
@@ -51,24 +48,23 @@ class NMDA(bp.TwoEndConn):
         self.g = self.register_constant_delay('g', size=self.size, delay_time=delay)
 
         self.integral = bp.odeint(f=self.derivative, method='rk4')
-        
+
         super(NMDA, self).__init__(pre=pre, post=post, **kwargs)
 
 
     def update(self, _t):
         self.x += bp.ops.unsqueeze(self.pre.spike, 1) * self.conn_mat        
         self.s, self.x = self.integral(self.s, self.x, _t, self.tau_rise, self.tau, self.a)
-        
+
         self.g.push(self.g_max * self.s)
         g_inf = 1 + self.cc_Mg / self.beta * bp.ops.exp(-self.alpha * self.post.V)
         g_inf = 1 / g_inf
         self.post.input -= bp.ops.sum(self.g.pull(), axis=0) * (self.post.V - self.E) * g_inf
 ```
 
-### GABA_a
+## GABA\_a
 
-GABA_a 可以采用single exponential的形式来实现，代码如下：
-
+GABA\_a 可以采用single exponential的形式来实现，代码如下：
 
 ```python
 class GABAa(bp.TwoEndConn):
@@ -109,9 +105,9 @@ class GABAa(bp.TwoEndConn):
                            * (self.post.V - self.E)
 ```
 
-### GABA_b
+## GABA\_b
 
-GABA_b的公式如下:
+GABA\_b的公式如下:
 
 $$
 \frac{d[R]}{dt} = k_3 [T](1-[R])- k_4 [R]
@@ -124,7 +120,6 @@ $$
 $$
 I_{GABA_{B}} =\overline{g}_{GABA_{B}} (\frac{[G]^{4}} {[G]^{4}+K_{d}}) (V-E_{GABA_{B}})
 $$
-
 
 ```python
 class GABAb(bp.TwoEndConn):    
@@ -179,7 +174,6 @@ class GABAb(bp.TwoEndConn):
 
 Let's compare the 4 synapses!
 
-
 ```python
 (I_ext, duration) = bp.inputs.constant_current([(0, 1), (35, 15), (0, 300)])
 
@@ -221,6 +215,5 @@ plt.legend()
 plt.show()
 ```
 
-
-![png](/home/nipcora/Documents/Brain-Models-book/figs/out/output_103_0.png)
+![png](https://github.com/adaliuBC/GATwithEFA_PyTorch/tree/208d72db158e2f0d5a9c08b464ca95f2706f5957/home/nipcora/Documents/Brain-Models-book/figs/out/output_103_0.png)
 

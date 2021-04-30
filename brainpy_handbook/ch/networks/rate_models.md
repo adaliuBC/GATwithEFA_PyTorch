@@ -1,10 +1,10 @@
-## 发放率网络 Firing rate networks
+# 发放率网络 Firing rate networks
 
-### 决择模型
+## 决择模型
 
 除了脉冲模型以外，BrainPy同样也可以实现发放率模型（Firing rate models）。我们首先来看看前述抉择模型的简化版本的实现。该模型由研究者（Wong & Wang, 2006）通过平均场方法（mean-field approach）等一系列手段简化得出，最终只剩下两个变量，$$S_1$$和$$S_2$$，分别表示两群神经元的状态，同时也分别对应着两个选项。
 
-<img src="../../figs/decision.png">
+![](../../../.gitbook/assets/decision.png)
 
 公式如下：
 
@@ -36,7 +36,6 @@ $$
 I_{syn, 2} = J_{22} S_2 - J_{21} S_1 + I_0 + I_2
 $$
 
-
 而外界输入 $$I_1, I_2$$ 则由总输入的强度 $$\mu_0$$ 及一致性（coherence） $$c'$$ 决定。一致性越高，则越明确$$S_1$$是正确答案，而一致性越低则表示越随机。公式如下：
 
 $$
@@ -47,10 +46,7 @@ $$
 I_2 = J_{\text{A, ext}} \mu_0 (1-\frac {c'}{100\%})
 $$
 
-
-
-代码实现如下，我们可以创建一个神经元群的类（``bp.NeuGroup``），并用$$S_1$$及$$S_2$$分别储存这群神经元的两个状态。该模型的动力学部分可以由一个``derivative``函数实现，以便进行动力学分析。
-
+代码实现如下，我们可以创建一个神经元群的类（`bp.NeuGroup`），并用$$S_1$$及$$S_2$$分别储存这群神经元的两个状态。该模型的动力学部分可以由一个`derivative`函数实现，以便进行动力学分析。
 
 ```python
 class Decision(bp.NeuGroup):
@@ -108,7 +104,6 @@ class Decision(bp.NeuGroup):
 
 相平面分析的代码如下。让我们来看看当没有外界输入，即$$\mu_0 = 0$$时的动力学。
 
-
 ```python
 from collections import OrderedDict
 
@@ -134,26 +129,24 @@ phase.plot_fixed_point()
 phase.plot_vector_field(show=True)
 ```
 
-    plot nullcline ...
-    plot fixed point ...
-    Fixed point #1 at s2=0.06176109215560733, s1=0.061761097890810475 is a stable node.
-    Fixed point #2 at s2=0.029354239100062428, s1=0.18815448592736211 is a saddle node.
-    Fixed point #3 at s2=0.0042468423702408655, s1=0.6303045696241589 is a stable node.
-    Fixed point #4 at s2=0.6303045696241589, s1=0.004246842370235128 is a stable node.
-    Fixed point #5 at s2=0.18815439944520335, s1=0.029354240536530615 is a saddle node.
-    plot vector field ...
+```text
+plot nullcline ...
+plot fixed point ...
+Fixed point #1 at s2=0.06176109215560733, s1=0.061761097890810475 is a stable node.
+Fixed point #2 at s2=0.029354239100062428, s1=0.18815448592736211 is a saddle node.
+Fixed point #3 at s2=0.0042468423702408655, s1=0.6303045696241589 is a stable node.
+Fixed point #4 at s2=0.6303045696241589, s1=0.004246842370235128 is a stable node.
+Fixed point #5 at s2=0.18815439944520335, s1=0.029354240536530615 is a saddle node.
+plot vector field ...
+```
 
+![png](../../../.gitbook/assets/output_77_1.png)
 
-
-![png](../../figs/out/output_77_1.png)
-
-
-由此可见，用BrainPy进行动力学分析是非常方便的。向量场和不动点 (fixed point)表示了不同初始值下最终会落在哪个选项。
+由此可见，用BrainPy进行动力学分析是非常方便的。向量场和不动点 \(fixed point\)表示了不同初始值下最终会落在哪个选项。
 
 这里，x轴是$$S_2$$，代表选项2，y轴是$$S_1$$，代表选项1。可以看到，左上的不动点 表示选项1，右下的不动点表示选项2，左下的不动点表示没有选择。
 
 现在让我们看看当我们把外部输入强度固定为30时，在不同一致性（coherence）下的相平面。
-
 
 ```python
 # coherence = 0%
@@ -210,48 +203,45 @@ phase.plot_fixed_point()
 phase.plot_vector_field(show=True)
 ```
 
-    coherence = 0%
-    plot nullcline ...
-    plot fixed point ...
-    Fixed point #1 at s2=0.6993504413889349, s1=0.011622049526766405 is a stable node.
-    Fixed point #2 at s2=0.49867489858358865, s1=0.49867489858358865 is a saddle node.
-    Fixed point #3 at s2=0.011622051540013889, s1=0.6993504355529329 is a stable node.
-    plot vector field ...
+```text
+coherence = 0%
+plot nullcline ...
+plot fixed point ...
+Fixed point #1 at s2=0.6993504413889349, s1=0.011622049526766405 is a stable node.
+Fixed point #2 at s2=0.49867489858358865, s1=0.49867489858358865 is a saddle node.
+Fixed point #3 at s2=0.011622051540013889, s1=0.6993504355529329 is a stable node.
+plot vector field ...
+```
 
+![png](../../../.gitbook/assets/output_79_1.png)
 
+```text
+coherence = 51.2%
+plot nullcline ...
+plot fixed point ...
+Fixed point #1 at s2=0.5673124813731691, s1=0.2864701069327971 is a saddle node.
+Fixed point #2 at s2=0.6655747347157656, s1=0.027835279565912054 is a stable node.
+Fixed point #3 at s2=0.005397687847426814, s1=0.7231453520305031 is a stable node.
+plot vector field ...
+```
 
-![png](../../figs/out/output_79_1.png)
+![png](../../../.gitbook/assets/output_79_3.png)
 
+```text
+coherence = 100%
+plot nullcline ...
+plot fixed point ...
+Fixed point #1 at s2=0.0026865954387078755, s1=0.7410985604497689 is a stable node.
+plot vector field ...
+```
 
-    coherence = 51.2%
-    plot nullcline ...
-    plot fixed point ...
-    Fixed point #1 at s2=0.5673124813731691, s1=0.2864701069327971 is a saddle node.
-    Fixed point #2 at s2=0.6655747347157656, s1=0.027835279565912054 is a stable node.
-    Fixed point #3 at s2=0.005397687847426814, s1=0.7231453520305031 is a stable node.
-    plot vector field ...
+![png](../../../.gitbook/assets/output_79_5.png)
 
-
-
-![png](../../figs/out/output_79_3.png)
-
-
-    coherence = 100%
-    plot nullcline ...
-    plot fixed point ...
-    Fixed point #1 at s2=0.0026865954387078755, s1=0.7410985604497689 is a stable node.
-    plot vector field ...
-
-
-
-![png](../../figs/out/output_79_5.png)
-
-
-### 连续吸引子模型（CANN）
+## 连续吸引子模型（CANN）
 
 让我们看看发放率模型（firing rate model）的另一个例子——连续吸引子神经网络（CANN）。一维CANN的结构如下：
 
-<img src="../../figs/cann.png">
+![](../../../.gitbook/assets/cann.png)
 
 神经元群的突触总输入$$u$$的动力学方程如下：
 
@@ -259,13 +249,13 @@ $$
 \tau \frac{du(x,t)}{dt} = -u(x,t) + \rho \int dx' J(x,x') r(x',t)+I_{ext}
 $$
 
-其中x表示神经元群的参数空间位点，$$r(x', t)$$是神经元群(x')的发放率，由以下公式给出:
+其中x表示神经元群的参数空间位点，$$r(x', t)$$是神经元群\(x'\)的发放率，由以下公式给出:
 
 $$
 r(x,t) = \frac{u(x,t)^2}{1 + k \rho \int dx' u(x',t)^2}
 $$
 
-而神经元群(x)和(x')之间的兴奋性连接强度$$J(x, x')$$由高斯函数给出:
+而神经元群\(x\)和\(x'\)之间的兴奋性连接强度$$J(x, x')$$由高斯函数给出:
 
 $$
 J(x,x') = \frac{1}{\sqrt{2\pi}a}\exp(-\frac{|x-x'|^2}{2a^2})
@@ -277,9 +267,7 @@ $$
 I_{ext} = A\exp\left[-\frac{|x-z(t)|^2}{4a^2}\right]
 $$
 
-
-在BrainPy的实现上，我们通过继承``bp.NeuGroup``来创建一个``CANN1D``的类：
-
+在BrainPy的实现上，我们通过继承`bp.NeuGroup`来创建一个`CANN1D`的类：
 
 ```python
 class CANN1D(bp.NeuGroup):
@@ -293,7 +281,7 @@ class CANN1D(bp.NeuGroup):
         Irec = np.dot(conn, r)
         du = (-u + Irec + Iext) / tau
         return du
-    
+
     def __init__(self, num, tau=1., k=8.1, a=0.5, A=10., J0=4.,
                  z_min=-np.pi, z_max=np.pi, **kwargs):
         # parameters
@@ -317,7 +305,7 @@ class CANN1D(bp.NeuGroup):
         self.conn_mat = self.make_conn(self.x)
 
         self.int_u = bp.odeint(f=self.derivative, method='rk4', dt=0.05)
-        
+
         super(CANN1D, self).__init__(size=num, **kwargs)
 
         self.rho = num / self.z_range  # The neural density
@@ -342,13 +330,11 @@ class CANN1D(bp.NeuGroup):
     def update(self, _t):
         self.u = self.int_u(self.u, _t, self.conn_mat, self.k, self.tau, self.input)
         self.input[:] = 0.
-
 ```
 
-其中函数``dist``与``make_conn``用来计算两群神经元之间的连接强度$$J$$。在``make_conn``函数中，我们首先计算每两个$$x$$之间的距离矩阵。由于神经元群是环状排列的，$$x$$的值介于$$-\pi$$到$$\pi$$之间，所以$$x-x'$$的范围为$$2\pi$$，且$$-\pi$$和$$\pi$$是同一个点（实际最远是$$\pi$$，即0.5*``z_range``，超出的距离需要减去一个``z_range``）。我们用``dist``函数来处理环上的距离。
+其中函数`dist`与`make_conn`用来计算两群神经元之间的连接强度$$J$$。在`make_conn`函数中，我们首先计算每两个$$x$$之间的距离矩阵。由于神经元群是环状排列的，$$x$$的值介于$$-\pi$$到$$\pi$$之间，所以$$x-x'$$的范围为$$2\pi$$，且$$-\pi$$和$$\pi$$是同一个点（实际最远是$$\pi$$，即0.5\*`z_range`，超出的距离需要减去一个`z_range`）。我们用`dist`函数来处理环上的距离。
 
-而``get_stimulus_by_pos``函数则是根据参数空间位点``pos``处理外界输入，可供用户在使用时调用获取所需的输入电流大小。例如在简单的群编码（population coding）中，我们给一个``pos=0``的外界输入，并按以下方式运行：
-
+而`get_stimulus_by_pos`函数则是根据参数空间位点`pos`处理外界输入，可供用户在使用时调用获取所需的输入电流大小。例如在简单的群编码（population coding）中，我们给一个`pos=0`的外界输入，并按以下方式运行：
 
 ```python
 cann = CANN1D(num=512, k=0.1, monitors=['u'])
@@ -367,12 +353,11 @@ bp.visualize.animate_1D(
 )
 ```
 
-<img src="../../figs/CANN-encoding.gif">
+![](../../../.gitbook/assets/CANN-encoding.gif)
 
 可以看到，$$u$$的形状编码了外界输入的形状。
 
 现在我们给外界输入加上随机噪声，看看$$u$$的形状如何变化。
-
 
 ```python
 cann = CANN1D(num=512, k=8.1, monitors=['u'])
@@ -397,12 +382,11 @@ bp.visualize.animate_1D(
 )
 ```
 
-<img src="../../figs/CANN-decoding.gif">
+![](../../../.gitbook/assets/CANN-decoding.gif)
 
 我们可以看到$$u$$的形状保持一个类似高斯的钟形，这表明CANN可以进行模版匹配。
 
-接下来我们用``np.linspace``函数来产生不同的位置，得到随时间平移的输入，我们将会看到$$u$$跟随着外界输入移动，即平滑追踪。
-
+接下来我们用`np.linspace`函数来产生不同的位置，得到随时间平移的输入，我们将会看到$$u$$跟随着外界输入移动，即平滑追踪。
 
 ```python
 cann = CANN1D(num=512, k=8.1, monitors=['u'])
@@ -428,4 +412,5 @@ bp.visualize.animate_1D(
 )
 ```
 
-<img src="../../figs/CANN-tracking.gif">
+![](../../../.gitbook/assets/CANN-tracking.gif)
+

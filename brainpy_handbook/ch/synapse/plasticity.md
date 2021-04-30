@@ -1,15 +1,14 @@
-## 突触可塑性
+# 突触可塑性
 
 我们刚刚讨论了突触动力学，但还没有涉及到突触可塑性。接下来就来看看如何使用BrainPy实现突触可塑性。
 
 可塑性主要区分短时程可塑性与长时程可塑性。我们将首先介绍突触短时程可塑性（STP），然后介绍几种不同的突触长时程可塑性模型。
 
-### 突触短时程可塑性（STP）
+## 突触短时程可塑性（STP）
 
-我们首先看实验的结果，图为突触前神经元发放时突触后神经元膜电位的变化。我们可以看到，当突触前神经元以短时间间隔持续发放的时候，突触后神经元的反应会越来越弱，呈现出短时程抑制 (short term depression)。但是很快就恢复了，所以这个可塑性是短期的。
+我们首先看实验的结果，图为突触前神经元发放时突触后神经元膜电位的变化。我们可以看到，当突触前神经元以短时间间隔持续发放的时候，突触后神经元的反应会越来越弱，呈现出短时程抑制 \(short term depression\)。但是很快就恢复了，所以这个可塑性是短期的。
 
-<img src="../../figs/stp.png">
-
+![](../../../.gitbook/assets/stp.png)
 
 模型的公式如下。在这里，短时程可塑性主要由$$u$$和$$x$$两个变量来描述。其中，$$u$$表示神经递质释放的概率，初始值为0，并随着突触前神经元的每次发放而增加，贡献短时程易化（STF）；而$$x$$代表神经递质的剩余量，初始值为1，每次突触前神经元发放都会用掉一些，这意味着它会减少，从而贡献短时程抑制（STD）。因此易化和抑制两个方向是同时发生的。$$\tau_f$$和$$\tau_d$$分别控制$$u$$和$$x$$的恢复速度，两者关系决定了可塑性的哪个方向起主导作用。
 
@@ -18,11 +17,11 @@ $$
 $$
 
 $$
-\frac {du} {dt} = - \frac u {\tau_f} 
+\frac {du} {dt} = - \frac u {\tau_f}
 $$
 
 $$
-\frac {dx} {dt} =  \frac {1-x} {\tau_d} 
+\frac {dx} {dt} =  \frac {1-x} {\tau_d}
 $$
 
 $$
@@ -36,7 +35,6 @@ $$
 
 用BrainPy实现的代码如下：
 
-
 ```python
 class STP(bp.TwoEndConn):
     target_backend = 'general'
@@ -47,7 +45,7 @@ class STP(bp.TwoEndConn):
         dudt = - u / tau_f
         dxdt = (1 - x) / tau_d
         return dsdt, dudt, dxdt
-    
+
     def __init__(self, pre, post, conn, delay=0., U=0.15, tau_f=1500., tau_d=200., tau=8.,  **kwargs):
         # parameters
         self.tau_d = tau_d
@@ -69,25 +67,24 @@ class STP(bp.TwoEndConn):
         self.I_syn = self.register_constant_delay('I_syn', size=self.size, delay_time=delay)
 
         self.integral = bp.odeint(f=self.derivative, method='exponential_euler')
-        
+
         super(STP, self).__init__(pre=pre, post=post, **kwargs)
 
 
     def update(self, _t):
         self.s, u, x = self.integral(self.s, self.u, self.x, _t, self.tau, self.tau_d, self.tau_f)
-        
+
         pre_spike_map = bp.ops.unsqueeze(self.pre.spike, 1) * self.conn_mat
         u += self.U * (1-self.u) * pre_spike_map
         self.s += self.w * u * self.x * pre_spike_map
         x -= u * self.x * pre_spike_map
-        
+
         self.u = u
         self.x = x
 
         self.I_syn.push(self.s)
         self.post.input += bp.ops.sum(self.I_syn.pull(), axis=0)
 ```
-
 
 ```python
 neu1 = bm.neurons.LIF(1, monitors=['V'])
@@ -115,10 +112,7 @@ plt.xlabel('Time (ms)')
 plt.show()
 ```
 
-
-![png](../../figs/out/output_43_0.png)
-
-
+![png](../../../.gitbook/assets/output_43_0.png)
 
 ```python
 neu1 = bm.neurons.LIF(1, monitors=['V'])
@@ -146,30 +140,26 @@ plt.xlabel('Time (ms)')
 plt.show()
 ```
 
+![png](../../../.gitbook/assets/output_44_0.png)
 
-![png](../../figs/out/output_44_0.png)
+这些图显示，当我们设置参数$$\tau_d>\tau_f$$、$$x$$每用掉一些后恢复非常缓慢，$$u$$每次上升后非常快衰减，因此，transmitter不够用了，不足以打开受体，表现出STD为主； 相反，当$$\tau_f > \tau_d$$，$$x$$每次用到后很快又补充回去了，总是有足够的transmitter可用。同时，$$u$$的衰减非常缓慢，因此释放transmitter的概率越来越高，表现出STF为主。
 
+## 突触长时程可塑性
 
-这些图显示，当我们设置参数$$\tau_d>\tau_f$$、$$x$$每用掉一些后恢复非常缓慢，$$u$$每次上升后非常快衰减，因此，transmitter不够用了，不足以打开受体，表现出STD为主；
-相反，当$$\tau_f > \tau_d$$，$$x$$每次用到后很快又补充回去了，总是有足够的transmitter可用。同时，$$u$$的衰减非常缓慢，因此释放transmitter的概率越来越高，表现出STF为主。
+### 脉冲时间依赖可塑性（STDP）
 
-### 突触长时程可塑性
+首先我们看实验上画的图，x轴是突触前神经元和突触后神经元发放的时间差，零的左侧代表突触前神经元的发放比突触后神经元的更早，由图片可以看出表现为长时程增强 \(long term potentiation; LTP）；而零的右侧代表突触后神经元比突触前神经元更先发放，呈现表现为长时程抑制 \(long term depression; LTD）。
 
-#### 脉冲时间依赖可塑性（STDP）
-
-首先我们看实验上画的图，x轴是突触前神经元和突触后神经元发放的时间差，零的左侧代表突触前神经元的发放比突触后神经元的更早，由图片可以看出表现为长时程增强 (long term potentiation; LTP）；而零的右侧代表突触后神经元比突触前神经元更先发放，呈现表现为长时程抑制 (long term depression; LTD）。
-
-<img src="../../figs/stdp.png">
-
+![](../../../.gitbook/assets/stdp.png)
 
 模型公式如下，其中$$A_{source}$$和$$A_{target}$$两个变量分别控制LTD和LTP。当突触前神经元先于突触后神经元发放时，在突触后神经元发放之前，$$A_t$$一直为0，所以$$w$$暂时不会有变化，只是$$A_s$$持续增加；直到突触后神经元发放时，$$w$$增加$$A_s - A_t$$，所以表现为长时程增强（LTP）。反之亦然。
 
 $$
-\frac {dA_s} {dt} = - \frac {A_s} {\tau_s} 
+\frac {dA_s} {dt} = - \frac {A_s} {\tau_s}
 $$
 
 $$
-\frac {dA_t} {dt} = - \frac {A_t} {\tau_t} 
+\frac {dA_t} {dt} = - \frac {A_t} {\tau_t}
 $$
 
 $$
@@ -189,20 +179,19 @@ w \leftarrow w + A_s
 \end{cases}
 $$
 
-现在让我们看看如何使用BrainPy来实现这个模型。$$s$$会在突触前神经元出现脉冲时增加，这与前面介绍的突触模型的动力学一致，这里我们通常使用单指数衰减 (single exponential decay)模型来实现$$s$$的动力学。
-
+现在让我们看看如何使用BrainPy来实现这个模型。$$s$$会在突触前神经元出现脉冲时增加，这与前面介绍的突触模型的动力学一致，这里我们通常使用单指数衰减 \(single exponential decay\)模型来实现$$s$$的动力学。
 
 ```python
 class STDP(bp.TwoEndConn):
     target_backend = 'general'
-    
+
     @staticmethod
     def derivative(s, A_s, A_t, t, tau, tau_s, tau_t):
         dsdt = -s / tau
         dAsdt = - A_s / tau_s
         dAtdt = - A_t / tau_t
         return dsdt, dAsdt, dAtdt
-    
+
     def __init__(self, pre, post, conn, delay=0., 
                 delta_A_s=0.5, delta_A_t=0.5, w_min=0., w_max=20., 
                 tau_s=10., tau_t=10., tau=10., **kwargs):
@@ -229,7 +218,7 @@ class STDP(bp.TwoEndConn):
         self.I_syn = self.register_constant_delay('I_syn', size=self.size, delay_time=delay)
 
         self.integral = bp.odeint(f=self.derivative, method='exponential_euler')
-        
+
         super(STDP, self).__init__(pre=pre, post=post, **kwargs)
 
 
@@ -242,11 +231,11 @@ class STDP(bp.TwoEndConn):
         s += w * pre_spike_map
         A_s += self.delta_A_s * pre_spike_map
         w -= A_t * pre_spike_map
-        
+
         post_spike_map = bp.ops.unsqueeze(self.post.spike, 0) * self.conn_mat
         A_t += self.delta_A_t * post_spike_map
         w += A_s * post_spike_map
-        
+
         self.A_s = A_s
         self.A_t = A_t
         self.w = bp.ops.clip(w, self.w_min, self.w_max)
@@ -255,7 +244,6 @@ class STDP(bp.TwoEndConn):
         self.I_syn.push(self.s)
         self.post.input += bp.ops.sum(self.I_syn.pull(), axis=0)
 ```
-
 
 ```python
 pre = bm.neurons.LIF(1, monitors=['spike'])
@@ -294,9 +282,7 @@ plt.xlabel('Time (ms)')
 plt.show()
 ```
 
-
-![png](../../figs/out/output_51_0.png)
-
+![png](../../../.gitbook/assets/output_51_0.png)
 
 结果正如我们所预期的，当突触前神经元在突触后神经元之前发放时，$$w$$增加，呈现LTP。
 
@@ -337,17 +323,15 @@ plt.xlabel('Time (ms)')
 plt.show()
 ```
 
-
-![png](../../figs/out/output_53_0.png)
-
+![png](../../../.gitbook/assets/output_53_0.png)
 
 如我们所料，当突触后神经元先于突触前神经元发放时，$$w$$减少，呈现LTD。
 
-#### Oja法则
+### Oja法则
 
-接下来我们看基于赫布学习律（Hebbian learning）的发放率模型 (rate model)。
+接下来我们看基于赫布学习律（Hebbian learning）的发放率模型 \(rate model\)。
 
-赫布学习律认为相互连接的两个神经元在经历同步的放电活动后，它们之间的突触连接就会得到增强。而这个同步不需要在意两个神经元前后发放的次序，因此可以忽略具体的发放时间，简化为发放率模型。我们首先看赫布学习律的一般形式，对于如图所示的$$j$$到$$i$$的连接，用$$v_j$$和$$v_i$$分别表示前神经元组和后神经元组的发放率 (firing rate)，根据赫布学习律的局部性(locality)特性，$$w_{ij}$$的变化受$$w$$本身、以及$$v_j, v_i$$的影响，可得以下微分方程。
+赫布学习律认为相互连接的两个神经元在经历同步的放电活动后，它们之间的突触连接就会得到增强。而这个同步不需要在意两个神经元前后发放的次序，因此可以忽略具体的发放时间，简化为发放率模型。我们首先看赫布学习律的一般形式，对于如图所示的$$j$$到$$i$$的连接，用$$v_j$$和$$v_i$$分别表示前神经元组和后神经元组的发放率 \(firing rate\)，根据赫布学习律的局部性\(locality\)特性，$$w_{ij}$$的变化受$$w$$本身、以及$$v_j, v_i$$的影响，可得以下微分方程。
 
 $$
 \frac d {dt} w_{ij} = F(w_{ij}; v_{i},v_j)
@@ -365,9 +349,7 @@ $$
 \frac d {dt} w_{ij} = \gamma [v_i v_j - w_{ij} v_i ^2 ]
 $$
 
-
 下面我们用BrainPy来实现Oja法则。
-
 
 ```python
 class Oja(bp.TwoEndConn):
@@ -401,21 +383,20 @@ class Oja(bp.TwoEndConn):
     def update(self, _t):
         w = self.conn_mat * self.w
         self.post.r = bp.ops.sum(w.T * self.pre.r, axis=1)
-        
+
         # resize to matrix
         dim = self.size
         r_post = bp.ops.vstack((self.post.r,) * dim[0])
         r_pre = bp.ops.vstack((self.pre.r,) * dim[1]).T
-        
+
         self.w = self.integral(w, _t, self.gamma, r_pre, r_post)
 ```
 
 我们打算实现如图所示的连接，紫色同时接受蓝色和红色两群神经元的输入。给后神经元的input和红色是完全一致的，而蓝色一开始一致，后来不一致了。
 
-<img src="../../figs/conn.png">
+![](../../../.gitbook/assets/conn.png)
 
 由于Oja是一个发放率模型，我们需要一个基于发放率的神经元模型来观察两组神经元的学习规则。
-
 
 ```python
 class neu(bp.NeuGroup):
@@ -440,7 +421,6 @@ class neu(bp.NeuGroup):
         self.r = self.g(self.r, _t, self.input, self.tau)
         self.input[:] = 0
 ```
-
 
 ```python
 # set params
@@ -497,13 +477,11 @@ plt.legend()
 plt.show()
 ```
 
-
-![png](../../figs/out/output_61_0.png)
-
+![png](../../../.gitbook/assets/output_61_0.png)
 
 从结果可以看到，一开始两群神经元同时给input时，他们的weights都上升，post的反应越来越强，显示出LTP。100ms后，group1不再一起发放，只有group2给input，就只有group2的weights增加。结果符合Hebbian learning的fire together，wire together。
 
-#### BCM法则
+### BCM法则
 
 BCM法则的公式如下：
 
@@ -513,11 +491,9 @@ $$
 
 公式右边画出来如下图所示，当发放频率高于阈值时呈现LTP，低于阈值时则为LTD。因此，通过调整阈值可以实现选择性。
 
-<img src="../../figs/bcm.png">
+![](../../../.gitbook/assets/bcm.png)
 
-
-这里我们使用和Oja法则相同的连接方式，只是两群神经元为交替发放。其中，蓝色总比红色发放更强一些。动态调整阈值为$$v_i$$的时间平均，即 $$v_\theta = f(v_i)$$。BrainPy实现的代码如下，在``update``函数中更新阈值。
-
+这里我们使用和Oja法则相同的连接方式，只是两群神经元为交替发放。其中，蓝色总比红色发放更强一些。动态调整阈值为$$v_i$$的时间平均，即 $$v_\theta = f(v_i)$$。BrainPy实现的代码如下，在`update`函数中更新阈值。
 
 ```python
 class BCM(bp.TwoEndConn):
@@ -567,7 +543,6 @@ class BCM(bp.TwoEndConn):
         # output
         self.post.r = bp.ops.sum(w.T * self.pre.r, axis=1)
 ```
-
 
 ```python
 w_max = 2.
@@ -621,8 +596,7 @@ plt.legend()
 plt.show()
 ```
 
-
-![png](../../figs/out/output_66_0.png)
-
+![png](../../../.gitbook/assets/output_66_0.png)
 
 结果发现，对input较强的group 1是LTP，而对input较弱的group 2是LTD，最终选择了group 1。
+
